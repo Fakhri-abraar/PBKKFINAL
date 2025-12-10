@@ -22,13 +22,12 @@ export default function Dashboard() {
       fetchTasks();
       fetchCategories();
     }
-  }, [token, page, priority, status, filterCat]); // Refetch saat filter berubah
+  }, [token, page, priority, status, filterCat]); 
 
   const fetchTasks = async () => {
-    // Build query params
     const params = new URLSearchParams({
       page: page.toString(),
-      limit: '5', // 5 item per halaman
+      limit: '5',
     });
     if (search) params.append('search', search);
     if (priority) params.append('priority', priority);
@@ -54,7 +53,7 @@ export default function Dashboard() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setPage(1); // Reset ke halaman 1 saat search
+    setPage(1); 
     fetchTasks();
   };
 
@@ -67,7 +66,7 @@ export default function Dashboard() {
       },
       body: JSON.stringify({ isCompleted: !task.isCompleted }),
     });
-    if (res.ok) fetchTasks(); // Refresh list
+    if (res.ok) fetchTasks(); 
   };
 
   const deleteTask = async (id: string) => {
@@ -82,10 +81,17 @@ export default function Dashboard() {
   return (
     <ProtectedRoute>
       <div className="container mt-4">
+        {/* Header Dashboard */}
         <div className="d-flex justify-content-between align-items-center mb-4">
           <h1>My Todo List</h1>
-          <div>
-            <span className="me-3">Hi, {user?.username}</span>
+          <div className="d-flex gap-2 align-items-center">
+            <span className="me-2">Hi, {user?.username}</span>
+            
+            {/* Tombol Find Friends */}
+            <Link href="/users" className="btn btn-outline-primary btn-sm">
+              🔍 Find Friends
+            </Link>
+            
             <button className="btn btn-outline-danger btn-sm" onClick={logout}>Logout</button>
           </div>
         </div>
@@ -159,7 +165,6 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              {/* Tombol Action */}
               <div className="d-flex gap-2">
                 <Link href={`/tasks/${task.id}/edit`} className="btn btn-sm btn-warning">
                   Edit
