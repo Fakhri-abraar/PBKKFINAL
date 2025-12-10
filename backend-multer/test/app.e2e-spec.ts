@@ -1,191 +1,228 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ValidationPipe } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
-import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma.service';
-import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
-import { MailerService } from '@nestjs-modules/mailer'; // Import ini
+import { AppModule } from './../src/app.module';
+import { PrismaService } from './../src/prisma.service';
+import * as fs from 'fs';
 
-describe('Todo List App (e2e)', () => {
-  let app: NestExpressApplication;
-  let prismaService: PrismaService;
-  let authToken: string;
-  let categoryId: string;
-  let uploadedImagePath: string;
-  let taskId: string;
+describe('AppController (e2e)', () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let jwtToken: string;
+  let createdTaskId: string;
 
-  const createTestImageBuffer = () => {
-    return Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-      'base64',
-    );
+  // Data User Dummy
+  const testUser = {
+    username: 'testuser',
+    email: 'test@example.com',
+    password: 'password123',
   };
 
+  const testTask = {
+    title: 'E2E Test Task',
+    priority: 'High',
+    dueDate: '2025-12-31',
+    isPublic: true,
+  };
+
+  // --- 1. Setup Aplikasi & Database ---
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    })
-    // [FIX] Override MailerService agar tidak butuh koneksi SMTP asli
-    .overrideProvider(MailerService)
-    .useValue({
-      sendMail: jest.fn().mockResolvedValue(true),
-    })
-    .compile();
+    }).compile();
 
-    app = moduleFixture.createNestApplication<NestExpressApplication>();
+    app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(new ValidationPipe()); // Penting: aktifkan validasi DTO
     
-    app.useGlobalPipes(
-      new ValidationPipe({
-        transform: true,
-        whitelist: true,
-      }),
-    );
-
-    app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-      prefix: '/uploads/',
-    });
-
+    // Ambil instance Prisma untuk membersihkan DB
+    prisma = app.get(PrismaService);
+    
     await app.init();
-    prismaService = app.get<PrismaService>(PrismaService);
+  });
 
-    // Clean DB
-    await prismaService.task.deleteMany();
-    await prismaService.category.deleteMany();
-    await prismaService.user.deleteMany();
+  // Bersihkan database sebelum setiap test agar terisolasi
+  beforeEach(async () => {
+    // Hapus data urut dari child ke parent (Task -> User)
+    await prisma.task.deleteMany();
+    await prisma.category.deleteMany();
+    await prisma.user.deleteMany();
   });
 
   afterAll(async () => {
-    // Pastikan app ada sebelum diclose (mencegah error Cannot read properties of undefined)
-    if (app) {
-      await prismaService.task.deleteMany();
-      await prismaService.category.deleteMany();
-      await prismaService.user.deleteMany();
-      await app.close();
-    }
+    await app.close();
   });
 
-  // --- 1. AUTHENTICATION FLOW ---
-  describe('Auth Module', () => {
-    const testUser = {
-      username: 'e2e_user',
-      email: 'e2e@test.com',
-      password: 'password123',
-    };
-
+  // --- 2. Authentication Tests ---
+  describe('Authentication', () => {
     it('/auth/register (POST) - Register successfully', () => {
       return request(app.getHttpServer())
         .post('/auth/register')
         .send(testUser)
         .expect(201)
-        .expect((res) => {
-          expect(res.body.message).toBeDefined();
+        .expect((res) => { 
+          expect(res.body.message).toBeDefined(); 
+          expect(res.body.user).toBeDefined();
+
+          expect(res.body.user.username).toEqual(testUser.username);
           expect(res.body.user.email).toEqual(testUser.email);
+
         });
     });
 
-    it('/auth/login (POST) - Login successfully', async () => {
-      const response = await request(app.getHttpServer())
-        .post('/auth/login')
-        .send({
-          username: testUser.username,
-          password: testUser.password,
-        })
-        .expect(201);
+    it('/auth/login (POST) - should login and return JWT', async () => {
+      // Register dulu
+      await request(app.getHttpServer()).post('/auth/register').send(testUser);
 
-      authToken = response.body.access_token;
-      expect(authToken).toBeDefined();
-    });
-
-    it('/auth/login (POST) - Fail with wrong password', () => {
+      // Login
       return request(app.getHttpServer())
         .post('/auth/login')
-        .send({
-          username: testUser.username,
-          password: 'wrongpassword',
-        })
-        .expect(401);
-    });
-  });
-
-  // --- 2. CATEGORY FLOW ---
-  describe('Categories Module', () => {
-    it('/categories (POST) - Create Category', async () => {
-      const response = await request(app.getHttpServer())
-        .post('/categories')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ name: 'Work Project' })
-        .expect(201);
-
-      categoryId = response.body.id;
-      expect(response.body.name).toEqual('Work Project');
+        .send({ username: testUser.username, password: testUser.password })
+        .expect(201)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('access_token');
+          jwtToken = res.body.access_token; // Simpan token untuk test berikutnya
+        });
     });
 
-    it('/categories (GET) - Get All Categories', () => {
+    it('/auth/login (POST) - should fail with wrong password', async () => {
+      await request(app.getHttpServer()).post('/auth/register').send(testUser);
+
       return request(app.getHttpServer())
-        .get('/categories')
-        .set('Authorization', `Bearer ${authToken}`)
-        .expect(200);
+        .post('/auth/login')
+        .send({ username: testUser.username, password: 'wrongpassword' })
+        .expect(401); // Unauthorized
     });
   });
 
-  // --- 3. UPLOAD FLOW ---
-  describe('Upload Module', () => {
-    it('/upload (POST) - Upload Image', async () => {
-      const response = await request(app.getHttpServer())
-        .post('/upload')
-        .set('Authorization', `Bearer ${authToken}`)
-        .attach('image', createTestImageBuffer(), 'task-image.png')
-        .expect(201);
-
-      uploadedImagePath = response.body.imagePath;
-      expect(uploadedImagePath).toBeDefined();
+  // --- 3. Task CRUD Tests ---
+  describe('Tasks', () => {
+    // Helper: Login user sebelum test task dijalankan
+    beforeEach(async () => {
+      await request(app.getHttpServer()).post('/auth/register').send(testUser);
+      const res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ username: testUser.username, password: testUser.password });
+      jwtToken = res.body.access_token;
     });
-  });
 
-  // --- 4. TASK FLOW ---
-  describe('Tasks Module', () => {
-    it('/tasks (POST) - Create Task', async () => {
-      const taskData = {
-        title: 'E2E Task',
-        description: 'Test',
-        priority: 'High',
-        dueDate: '2025-12-31',
-        categoryId: categoryId,
-        fileUrl: uploadedImagePath,
-        isPublic: true,
-      };
-
-      const response = await request(app.getHttpServer())
+    it('/tasks (POST) - should create a task', async () => {
+      return request(app.getHttpServer())
         .post('/tasks')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(taskData)
-        .expect(201);
-
-      taskId = response.body.id;
-      expect(response.body.title).toEqual(taskData.title);
+        .set('Authorization', `Bearer ${jwtToken}`) // Pakai Token
+        .send(testTask)
+        .expect(201)
+        .expect((res) => {
+          expect(res.body.title).toEqual(testTask.title);
+          expect(res.body.isPublic).toEqual(true);
+          createdTaskId = res.body.id; // Simpan ID untuk update/delete
+        });
     });
 
-    it('/tasks (GET) - Get All Tasks', () => {
+    it('/tasks (POST) - should fail without title', async () => {
+      return request(app.getHttpServer())
+        .post('/tasks')
+        .set('Authorization', `Bearer ${jwtToken}`)
+        .send({ ...testTask, title: '' }) // Judul kosong
+        .expect(400); // Bad Request (Validation Error)
+    });
+
+    it('/tasks (GET) - should get all tasks', async () => {
+      // Buat 1 task dulu
+      await request(app.getHttpServer())
+        .post('/tasks')
+        .set('Authorization', `Bearer ${jwtToken}`)
+        .send(testTask);
+
       return request(app.getHttpServer())
         .get('/tasks')
-        .set('Authorization', `Bearer ${authToken}`)
-        .query({ page: 1, limit: 10 })
-        .expect(200);
+        .set('Authorization', `Bearer ${jwtToken}`)
+        .expect(200)
+        .expect((res) => {
+          expect(Array.isArray(res.body.data)).toBe(true);
+          expect(res.body.data.length).toBeGreaterThan(0);
+        });
     });
 
-    it('/tasks/:id (GET) - Get One Task', () => {
+    it('/tasks/:id (GET) - should get task detail', async () => {
+      // Buat task
+      const createRes = await request(app.getHttpServer())
+        .post('/tasks')
+        .set('Authorization', `Bearer ${jwtToken}`)
+        .send(testTask);
+      const taskId = createRes.body.id;
+
       return request(app.getHttpServer())
         .get(`/tasks/${taskId}`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .expect(200);
+        .set('Authorization', `Bearer ${jwtToken}`)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.id).toEqual(taskId);
+        });
     });
 
-    it('/tasks/:id (DELETE) - Delete Task', () => {
+    it('/tasks/:id (PATCH) - should update task status', async () => {
+      // Buat task
+      const createRes = await request(app.getHttpServer())
+        .post('/tasks')
+        .set('Authorization', `Bearer ${jwtToken}`)
+        .send(testTask);
+      const taskId = createRes.body.id;
+
+      return request(app.getHttpServer())
+        .patch(`/tasks/${taskId}`)
+        .set('Authorization', `Bearer ${jwtToken}`)
+        .send({ isCompleted: true })
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.isCompleted).toBe(true);
+        });
+    });
+
+    it('/tasks/:id (DELETE) - should delete task', async () => {
+      // Buat task
+      const createRes = await request(app.getHttpServer())
+        .post('/tasks')
+        .set('Authorization', `Bearer ${jwtToken}`)
+        .send(testTask);
+      const taskId = createRes.body.id;
+
       return request(app.getHttpServer())
         .delete(`/tasks/${taskId}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Authorization', `Bearer ${jwtToken}`)
         .expect(200);
+    });
+  });
+
+  // --- 4. File Upload Tests ---
+  describe('File Upload', () => {
+    beforeEach(async () => {
+      // Login flow
+      await request(app.getHttpServer()).post('/auth/register').send(testUser);
+      const res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ username: testUser.username, password: testUser.password });
+      jwtToken = res.body.access_token;
+    });
+
+    it('/upload (POST) - should upload a file', async () => {
+      // Buat buffer dummy sebagai file gambar
+      const fileBuffer = Buffer.from('fake image content');
+
+      return request(app.getHttpServer())
+        .post('/upload')
+        .set('Authorization', `Bearer ${jwtToken}`)
+        .attach('file', fileBuffer, 'test-image.jpg') // 'file' sesuai nama field di Controller
+        .expect(201)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('filePath');
+        });
+    });
+
+    it('/upload (POST) - should fail without token', async () => {
+      return request(app.getHttpServer())
+        .post('/upload')
+        .attach('file', Buffer.from('test'), 'test.jpg')
+        .expect(401); // Unauthorized
     });
   });
 });

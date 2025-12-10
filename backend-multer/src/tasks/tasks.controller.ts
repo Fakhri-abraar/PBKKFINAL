@@ -64,16 +64,16 @@ export class TasksController {
   @UseGuards(JwtAuthGuard)
   @Get('public/:username') 
   async findPublicTasks(@Param('username') username: string) {
-    // Memanggil service findPublicTasksByUser yang sudah Anda buat
+
     return this.tasksService.findPublicTasksByUser(username);
   }
-  // ==================================================================
+ 
 
   // 3. Get One Task Detail
   @UseGuards(JwtAuthGuard)
   @Get(':id')
   async findOne(@Param('id') id: string, @Request() req: { user: JwtPayloadDto }) {
-  // Sekarang kita kirim username requester ke service
+
   return this.tasksService.findOne(id, req.user.username);
   }
 

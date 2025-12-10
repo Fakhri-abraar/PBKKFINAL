@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsDateString, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsDateString, IsBoolean, IsNotEmpty } from 'class-validator';
 
 export enum TaskPriority {
   LOW = 'Low',
@@ -8,6 +8,7 @@ export enum TaskPriority {
 
 export class CreateTaskDto {
   @IsString()
+  @IsNotEmpty()
   title: string;
 
   @IsString()
