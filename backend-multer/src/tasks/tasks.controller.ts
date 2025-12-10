@@ -5,30 +5,32 @@ import {
   Get,
   Param,
   Post,
-  Patch, // Ganti Put jadi Patch
+  Patch, 
   Query,
   Request,
   UseGuards,
-  NotFoundException, // Tambahan
+  NotFoundException, 
+  DefaultValuePipe, 
+  ParseIntPipe
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TasksService } from './tasks.service';
-// PERHATIKAN IMPORT INI: pastikan sesuai nama file baru
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { JwtPayloadDto } from '../auth/dto/jwt-payload.dto';
-import { DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 
 @Controller('tasks')
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
+  // 1. Create Task
   @UseGuards(JwtAuthGuard)
   @Post()
   async create(@Body() createTaskDto: CreateTaskDto, @Request() req: { user: JwtPayloadDto }) {
     return this.tasksService.create(createTaskDto, req.user.username);
   }
 
+  // 2. Get All Tasks (Personal)
   @UseGuards(JwtAuthGuard)
   @Get()
   async findAll(
@@ -38,9 +40,9 @@ export class TasksController {
     @Query('status') status?: string,
     @Query('categoryId') categoryId?: string,
     
-    // [Baru] Filter Tanggal
-    @Query('startDate') startDate?: string, // Format: YYYY-MM-DD
-    @Query('endDate') endDate?: string,     // Format: YYYY-MM-DD
+    // Filter Tanggal
+    @Query('startDate') startDate?: string, 
+    @Query('endDate') endDate?: string,     
 
     // Pagination
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
@@ -51,21 +53,36 @@ export class TasksController {
       priority,
       status,
       categoryId,
-      startDate, // Kirim ke service
-      endDate,   // Kirim ke service
+      startDate, 
+      endDate,   
       page,
       limit,
     });
   }
 
+  // ==================================================================
+  // [BARU] Endpoint untuk melihat Public Tasks user lain
+  // URL: GET /tasks/public/{username}
+  // PENTING: Harus diletakkan SEBELUM @Get(':id')
+  // ==================================================================
+  @UseGuards(JwtAuthGuard)
+  @Get('public/:username') 
+  async findPublicTasks(@Param('username') username: string) {
+    // Memanggil service findPublicTasksByUser yang sudah Anda buat
+    return this.tasksService.findPublicTasksByUser(username);
+  }
+  // ==================================================================
+
+  // 3. Get One Task Detail
   @UseGuards(JwtAuthGuard)
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.tasksService.findOne(id);
   }
 
+  // 4. Update Task
   @UseGuards(JwtAuthGuard)
-  @Patch(':id') // Gunakan Patch untuk update sebagian
+  @Patch(':id') 
   async update(
     @Param('id') id: string,
     @Body() updateTaskDto: UpdateTaskDto,
@@ -74,6 +91,7 @@ export class TasksController {
     return this.tasksService.update(id, updateTaskDto, req.user.username);
   }
 
+  // 5. Delete Task
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async remove(@Param('id') id: string, @Request() req: { user: JwtPayloadDto }) {

@@ -7,6 +7,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { UploadModule } from './upload/upload.module';
 import { CategoriesModule } from './categories/categories.module';
 import { EmailModule } from './email/email.module'; // [BARU] Import EmailModule
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { EmailModule } from './email/email.module'; // [BARU] Import EmailModule
     TasksModule,
     UploadModule,
     CategoriesModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

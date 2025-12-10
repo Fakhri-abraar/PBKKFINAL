@@ -137,17 +137,30 @@ export class TasksService {
   }
 
   // 3. Find One Task
-  async findOne(id: string) {
-    const task = await this.prisma.task.findUnique({
-      where: { id },
+  async findOne(id: string, requesterId?: string) { // Tambahkan parameter opsional
+     const task = await this.prisma.task.findUnique({
+     where: { id },
       include: { category: true, author: true },
-    });
+  });
 
-    if (!task) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
-    }
-    return task;
+  if (!task) {
+    throw new NotFoundException(`Task with ID ${id} not found`);
   }
+
+  // [SECURITY FIX]
+  // Jika requesterId diberikan, lakukan pengecekan hak akses
+  if (requesterId) {
+    const isOwner = task.authorId === requesterId;
+    const isPublic = task.isPublic;
+
+    // Jika bukan pemilik DAN bukan task public, tolak akses
+    if (!isOwner && !isPublic) {
+      throw new ForbiddenException('You do not have permission to view this private task');
+    }
+  }
+
+  return task;
+ }
 
   // 4. Update Task
   async update(id: string, updateTaskDto: UpdateTaskDto, userId: string) {
