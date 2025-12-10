@@ -1,5 +1,5 @@
 import { Body, Controller, Post, Request, UseGuards } from '@nestjs/common';
-import { handlePrismaError } from '../common/prisma-error.handler';
+import { handlePrismaError } from '../common/prisma-error.handler'; // Pastikan path ini benar
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -29,8 +29,10 @@ export class AuthController {
     }
   }
 
+  // [PENTING] Nama method diubah jadi 'refreshToken' agar sesuai dengan Test
+  // Endpoint tetap '/auth/refresh'
   @Post('refresh')
-  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
+  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     try {
       return await this.authService.refreshToken(refreshTokenDto);
     } catch (error) {

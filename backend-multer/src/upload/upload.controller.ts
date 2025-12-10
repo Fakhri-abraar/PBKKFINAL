@@ -18,7 +18,7 @@ export class UploadController {
   @UseInterceptors(
     FileInterceptor('image', {
       limits: {
-        fileSize: 5 * 1024 * 1024, // Batas 5MB
+        fileSize: 5 * 1024 * 1024, // 5MB
       },
       fileFilter: (req, file, callback) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
@@ -30,7 +30,7 @@ export class UploadController {
         callback(null, true);
       },
       storage: diskStorage({
-        destination: './uploads', // Folder tujuan penyimpanan
+        destination: './uploads',
         filename: (req, file, callback) => {
           const uniqueSuffix =
             'image-' + Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -42,7 +42,8 @@ export class UploadController {
   )
   uploadFile(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
-      return { imagePath: null };
+      // [FIX] Lempar error jika file tidak ada (sesuai ekspektasi test)
+      throw new BadRequestException('File is required');
     }
     return {
       imagePath: file.filename,

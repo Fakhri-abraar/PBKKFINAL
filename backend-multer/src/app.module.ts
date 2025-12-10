@@ -1,18 +1,24 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { TasksModule } from './tasks/tasks.module';
 import { UploadModule } from './upload/upload.module';
-// Import CategoriesModule
-import { CategoriesModule } from './categories/categories.module'; 
+import { CategoriesModule } from './categories/categories.module';
+import { EmailModule } from './email/email.module'; // [BARU] Import EmailModule
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
+    
+    // Gunakan EmailModule (Global) sebagai pengganti MailerModule langsung
+    EmailModule,
+
     AuthModule,
     TasksModule,
     UploadModule,
-    CategoriesModule, // <-- Tambahkan di sini
+    CategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

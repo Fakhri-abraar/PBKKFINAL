@@ -1,81 +1,91 @@
-import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { CategoriesService } from './categories.service';
 import { PrismaService } from '../prisma.service';
-import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 
-@Injectable()
-export class CategoriesService {
-  constructor(private prisma: PrismaService) {}
+const mockCategory = {
+  id: 'cat-1',
+  name: 'Work',
+  username: 'testuser',
+};
 
-  // 1. Create Category
-  async create(createCategoryDto: CreateCategoryDto, userId: string) {
-    try {
-      return await this.prisma.category.create({
-        data: {
-          name: createCategoryDto.name,
-          user: {
-            connect: { username: userId },
-          },
-        },
-      });
-    } catch (error) {
-      // Menangani error unique constraint (jika user membuat nama kategori yang sama 2x)
-      if (error.code === 'P2002') {
-        throw new ConflictException('Category with this name already exists');
-      }
-      throw error;
-    }
-  }
+const mockPrismaService = {
+  category: {
+    create: jest.fn().mockResolvedValue(mockCategory),
+    findMany: jest.fn().mockResolvedValue([mockCategory]),
+    findUnique: jest.fn().mockResolvedValue(mockCategory),
+    update: jest.fn().mockResolvedValue({ ...mockCategory, name: 'Updated' }),
+    delete: jest.fn().mockResolvedValue(mockCategory),
+  },
+};
 
-  // 2. Find All Categories (Milik User Login)
-  async findAll(userId: string) {
-    return this.prisma.category.findMany({
-      where: {
-        username: userId,
-      },
-      orderBy: {
-        name: 'asc', // Urutkan abjad
-      },
+describe('CategoriesService', () => {
+  let service: CategoriesService;
+  let prisma: PrismaService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        CategoriesService,
+        { provide: PrismaService, useValue: mockPrismaService },
+      ],
+    }).compile();
+
+    service = module.get<CategoriesService>(CategoriesService);
+    prisma = module.get<PrismaService>(PrismaService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('create', () => {
+    it('should create a category', async () => {
+      const result = await service.create({ name: 'Work' }, 'testuser');
+      expect(result).toEqual(mockCategory);
     });
-  }
 
-  // 3. Find One
-  async findOne(id: string) {
-    const category = await this.prisma.category.findUnique({
-      where: { id },
+    it('should throw ConflictException on duplicate name', async () => {
+      jest.spyOn(prisma.category, 'create').mockRejectedValueOnce({ code: 'P2002' });
+      await expect(service.create({ name: 'Work' }, 'testuser')).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('findAll', () => {
+    it('should return array of categories', async () => {
+      const result = await service.findAll('testuser');
+      expect(result).toEqual([mockCategory]);
+    });
+  });
+
+  describe('findOne', () => {
+    it('should return a category', async () => {
+      const result = await service.findOne('cat-1');
+      expect(result).toEqual(mockCategory);
     });
 
-    if (!category) {
-      throw new NotFoundException(`Category with ID ${id} not found`);
-    }
-    return category;
-  }
-
-  // 4. Update Category
-  async update(id: string, updateCategoryDto: UpdateCategoryDto, userId: string) {
-    const category = await this.findOne(id);
-
-    // Pastikan user hanya bisa edit kategorinya sendiri
-    if (category.username !== userId) {
-      throw new ForbiddenException('You can only update your own categories');
-    }
-
-    return this.prisma.category.update({
-      where: { id },
-      data: updateCategoryDto,
+    it('should throw NotFoundException if not found', async () => {
+      jest.spyOn(prisma.category, 'findUnique').mockResolvedValueOnce(null);
+      await expect(service.findOne('cat-99')).rejects.toThrow(NotFoundException);
     });
-  }
+  });
 
-  // 5. Delete Category
-  async remove(id: string, userId: string) {
-    const category = await this.findOne(id);
-
-    if (category.username !== userId) {
-      throw new ForbiddenException('You can only delete your own categories');
-    }
-
-    return this.prisma.category.delete({
-      where: { id },
+  describe('update', () => {
+    it('should update category if owner', async () => {
+      const result = await service.update('cat-1', { name: 'Updated' }, 'testuser');
+      expect(result.name).toBe('Updated');
     });
-  }
-}
+
+    it('should throw ForbiddenException if not owner', async () => {
+      jest.spyOn(prisma.category, 'findUnique').mockResolvedValueOnce({ ...mockCategory, username: 'other' });
+      await expect(service.update('cat-1', { name: 'Up' }, 'testuser')).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('remove', () => {
+    it('should delete category if owner', async () => {
+      const result = await service.remove('cat-1', 'testuser');
+      expect(result).toEqual(mockCategory);
+    });
+  });
+});
