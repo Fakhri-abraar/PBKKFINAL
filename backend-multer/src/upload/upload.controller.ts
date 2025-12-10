@@ -16,12 +16,24 @@ export class UploadController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
-    // [UBAH] Ganti 'image' jadi 'file' dan hapus fileFilter
     FileInterceptor('file', {
       limits: {
-        fileSize: 10 * 1024 * 1024, // [OPSIONAL] Saya naikkan limit jadi 10MB untuk file dokumen
+        fileSize: 10 * 1024 * 1024, // Limit 10MB
       },
-      // fileFilter dihapus agar semua jenis file bisa masuk
+      // [PERBAIKAN] Menambahkan fileFilter untuk validasi tipe file
+      fileFilter: (req, file, callback) => {
+        // Regex untuk mengizinkan jpg, jpeg, png, pdf, doc, dan docx
+        // Huruf 'i' berarti case-insensitive (JPG sama dengan jpg)
+        if (!file.originalname.match(/\.(jpg|jpeg|png|pdf|doc|docx)$/i)) {
+          return callback(
+            new BadRequestException(
+              'Hanya file gambar (jpg, png) dan dokumen (pdf, docx) yang diperbolehkan!',
+            ),
+            false,
+          );
+        }
+        callback(null, true);
+      },
       storage: diskStorage({
         destination: './uploads',
         filename: (req, file, callback) => {
@@ -34,11 +46,11 @@ export class UploadController {
     }),
   )
   uploadFile(@UploadedFile() file: Express.Multer.File) {
+    // Validasi tambahan jika fileFilter menolak file (file akan undefined)
     if (!file) {
-      throw new BadRequestException('File is required');
+      throw new BadRequestException('File is required or invalid file type');
     }
     return {
-      // [UBAH] Return filePath agar lebih umum (bukan imagePath)
       filePath: file.filename,
     };
   }
