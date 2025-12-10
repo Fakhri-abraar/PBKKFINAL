@@ -16,25 +16,28 @@ datasource db {
 model User {
   username     String  @id
   password     String
-  refreshToken String? // Store the hashed refresh token
-  posts        Post[]
-
+  refreshToken String?
+  tasks        Task[]  // Ganti posts jadi tasks
+  
   @@map("users")
 }
 
-model Post {
-  id        String   @id @default(uuid())
-  content   String
-  imagePath String? // Optional - S3 path to uploaded image
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [username], onDelete: Cascade)
-  replyToId String? // Optional - null if it's not a reply
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Task {
+  id          String   @id @default(uuid())
+  title       String   // [Baru] Judul task
+  description String?  // Ganti content jadi description (opsional)
+  priority    String   // [Baru] Low, Medium, High
+  dueDate     DateTime // [Baru] Tenggat waktu
+  category    String?  // [Baru] Kategori/Tag
+  isCompleted Boolean  @default(false) // [Baru] Status selesai/belum
+  
+  filePath    String?  // Ganti imagePath jadi filePath (untuk attachment)
+  
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [username], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  // Reply relationships
-  replyTo Post?  @relation("PostReplies", fields: [replyToId], references: [id], onDelete: Cascade)
-  replies Post[] @relation("PostReplies")
-
-  @@map("posts")
+  @@map("tasks")
 }
