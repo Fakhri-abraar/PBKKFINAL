@@ -1,7 +1,7 @@
 import { 
   Injectable, 
   UnauthorizedException, 
-  ConflictException // [Fix] Tambahkan import ini
+  ConflictException 
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -9,7 +9,8 @@ import { PrismaService } from '../prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { JwtPayloadDto } from './dto/jwt-payload.dto'; // [Fix] Pastikan import ini ada
+// Pastikan path ini sesuai dengan struktur folder Anda
+// import { JwtPayloadDto } from './dto/jwt-payload.dto'; 
 
 @Injectable()
 export class AuthService {
@@ -92,17 +93,22 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Generate Token (Gunakan method generateTokens agar konsisten)
+    // Generate Token
     const tokens = this.generateTokens(user.username);
     await this.updateRefreshToken(user.username, tokens.refreshToken);
 
+    // [PERBAIKAN PENTING] 
+    // Mengembalikan objek 'user' agar frontend AuthContext bisa menyimpannya.
     return {
       access_token: tokens.accessToken,
       refresh_token: tokens.refreshToken,
+      user: {
+        username: user.username,
+        email: user.email,
+      },
     };
   }
 
-  // [Fix] Method refreshToken sekarang berada DI DALAM class (sebelumnya di luar)
   async refreshToken(refreshTokenDto: RefreshTokenDto) {
     const { refreshToken } = refreshTokenDto;
 
@@ -139,6 +145,7 @@ export class AuthService {
       return {
         access_token: accessToken,
         refresh_token: newRefreshToken,
+        // Opsional: Anda bisa mengembalikan user juga di sini jika perlu update state
       };
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
