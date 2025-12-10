@@ -19,7 +19,7 @@ export default function NewTask() {
   
   // State Data
   const [categories, setCategories] = useState<Category[]>([]);
-  const [newCategoryName, setNewCategoryName] = useState(''); // Untuk bikin kategori on-the-fly
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   useEffect(() => {
     if (token) fetchCategories();
@@ -45,7 +45,7 @@ export default function NewTask() {
     if (res.ok) {
       const cat = await res.json();
       setCategories([...categories, cat]);
-      setCategoryId(cat.id); // Otomatis pilih kategori baru
+      setCategoryId(cat.id);
       setNewCategoryName('');
     }
   };
@@ -55,10 +55,11 @@ export default function NewTask() {
     try {
       let fileUrl = null;
 
-      // 1. Upload File dulu (jika ada)
+      // 1. Upload File (General File)
       if (file) {
         const formData = new FormData();
-        formData.append('image', file);
+        // [UBAH] Key harus 'file' sesuai dengan backend yang baru
+        formData.append('file', file);
         
         const uploadRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
           method: 'POST',
@@ -68,7 +69,11 @@ export default function NewTask() {
         
         if (uploadRes.ok) {
           const data = await uploadRes.json();
-          fileUrl = data.imagePath;
+          // [UBAH] Backend sekarang mengembalikan filePath
+          fileUrl = data.filePath;
+        } else {
+            alert('File upload failed');
+            return;
         }
       }
 
@@ -77,7 +82,7 @@ export default function NewTask() {
         title,
         description,
         priority,
-        dueDate, // Format YYYY-MM-DD dari input type="date" sudah sesuai
+        dueDate,
         categoryId: categoryId || null,
         isPublic,
         fileUrl,
@@ -93,8 +98,9 @@ export default function NewTask() {
       });
 
       if (!res.ok) throw new Error('Failed to create task');
-      router.push('/'); // Kembali ke dashboard
+      router.push('/'); 
     } catch (error) {
+      console.error(error);
       alert('Error creating task');
     }
   };
@@ -148,21 +154,21 @@ export default function NewTask() {
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
-              {/* Quick Add Category */}
               <input type="text" className="form-control" placeholder="New Cat..." style={{width: '120px'}}
                 value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} />
               <button type="button" className="btn btn-secondary" onClick={handleCreateCategory}>+</button>
             </div>
           </div>
 
-          {/* File Upload */}
+          {/* File Upload Section */}
           <div className="mb-3">
-            <label className="form-label">Attachment (Image)</label>
+            {/* [UBAH] Label lebih umum */}
+            <label className="form-label">Attachment (Any File)</label>
             <input type="file" className="form-control" 
               onChange={e => setFile(e.target.files ? e.target.files[0] : null)} />
+            <small className="text-muted">Max size: 10MB</small>
           </div>
 
-          {/* Is Public Switch */}
           <div className="form-check form-switch mb-4">
             <input className="form-check-input" type="checkbox" 
               checked={isPublic} onChange={e => setIsPublic(e.target.checked)} />

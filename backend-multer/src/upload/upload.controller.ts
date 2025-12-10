@@ -16,24 +16,17 @@ export class UploadController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
-    FileInterceptor('image', {
+    // [UBAH] Ganti 'image' jadi 'file' dan hapus fileFilter
+    FileInterceptor('file', {
       limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB
+        fileSize: 10 * 1024 * 1024, // [OPSIONAL] Saya naikkan limit jadi 10MB untuk file dokumen
       },
-      fileFilter: (req, file, callback) => {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
-          return callback(
-            new BadRequestException('Only image files are allowed'),
-            false,
-          );
-        }
-        callback(null, true);
-      },
+      // fileFilter dihapus agar semua jenis file bisa masuk
       storage: diskStorage({
         destination: './uploads',
         filename: (req, file, callback) => {
           const uniqueSuffix =
-            'image-' + Date.now() + '-' + Math.round(Math.random() * 1e9);
+            'file-' + Date.now() + '-' + Math.round(Math.random() * 1e9);
           const ext = extname(file.originalname);
           callback(null, `${uniqueSuffix}${ext}`);
         },
@@ -42,11 +35,11 @@ export class UploadController {
   )
   uploadFile(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
-      // [FIX] Lempar error jika file tidak ada (sesuai ekspektasi test)
       throw new BadRequestException('File is required');
     }
     return {
-      imagePath: file.filename,
+      // [UBAH] Return filePath agar lebih umum (bukan imagePath)
+      filePath: file.filename,
     };
   }
 }
