@@ -1,236 +1,192 @@
-import { useEffect, useState } from "react";
-import { useAuth } from "../contexts/AuthContext";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useAuth } from '../contexts/AuthContext';
+import ProtectedRoute from '../components/ProtectedRoute';
+import { Task, PaginationMeta, Category } from '../types';
 
-interface Author {
-  username: string;
-}
+export default function Dashboard() {
+  const { user, token, logout } = useAuth();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [meta, setMeta] = useState<PaginationMeta | null>(null);
 
-interface Post {
-  id: string;
-  content: string;
-  imagePath?: string;
-  createdAt: string;
-  updatedAt: string;
-  author?: Author;
-  replyToId?: string;
-  replyTo?: {
-    id: string;
-    content: string;
-    author?: Author;
-  };
-  replies?: Post[];
-}
-
-export default function Home() {
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { user, token } = useAuth();
-
-  async function fetchPosts() {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch("http://localhost:3000/posts");
-      if (!response.ok) {
-        throw new Error("Failed to fetch posts");
-      }
-      const data = await response.json();
-      setPosts(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Filter States
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [priority, setPriority] = useState('');
+  const [status, setStatus] = useState('');
+  const [filterCat, setFilterCat] = useState('');
 
   useEffect(() => {
-    fetchPosts();
-  }, []);
-
-  async function handleDelete(id: string) {
-    if (!token) {
-      alert("Please login to delete posts");
-      return;
+    if (token) {
+      fetchTasks();
+      fetchCategories();
     }
+  }, [token, page, priority, status, filterCat]); // Refetch saat filter berubah
 
-    if (confirm("Are you sure?")) {
-      try {
-        const response = await fetch(`http://localhost:3000/posts/${id}`, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (response.ok) {
-          fetchPosts();
-          alert("Deleted successfully.");
-        } else if (response.status === 401) {
-          alert("Please login to delete posts");
-        } else if (response.status === 403) {
-          alert("You can only delete your own posts");
-        } else {
-          alert("Error deleting post");
-        }
-      } catch (error) {
-        alert("Error deleting post");
-      }
+  const fetchTasks = async () => {
+    // Build query params
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: '5', // 5 item per halaman
+    });
+    if (search) params.append('search', search);
+    if (priority) params.append('priority', priority);
+    if (status) params.append('status', status);
+    if (filterCat) params.append('categoryId', filterCat);
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setTasks(data.data);
+      setMeta(data.meta);
     }
-  }
+  };
 
-  function canModifyPost(post: Post): boolean {
-    return !!user && !!post.author && post.author.username === user.username;
-  }
+  const fetchCategories = async () => {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setCategories(await res.json());
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(1); // Reset ke halaman 1 saat search
+    fetchTasks();
+  };
+
+  const toggleComplete = async (task: Task) => {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks/${task.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ isCompleted: !task.isCompleted }),
+    });
+    if (res.ok) fetchTasks(); // Refresh list
+  };
+
+  const deleteTask = async (id: string) => {
+    if (!confirm('Are you sure?')) return;
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) fetchTasks();
+  };
 
   return (
-    <>
-      <h1>App Posts</h1>
-
-      {user ? (
-        <a href="/posts/new" className="btn btn-primary mb-3">
-          Create New Post
-        </a>
-      ) : (
-        <div className="alert alert-info mb-3">
-          <a href="/auth/login">Login</a> to create posts
-        </div>
-      )}
-
-      {loading ? (
-        <div className="text-center">
-          <div className="spinner-border" role="status">
-            <span className="visually-hidden">Loading...</span>
+    <ProtectedRoute>
+      <div className="container mt-4">
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h1>My Todo List</h1>
+          <div>
+            <span className="me-3">Hi, {user?.username}</span>
+            <button className="btn btn-outline-danger btn-sm" onClick={logout}>Logout</button>
           </div>
         </div>
-      ) : error ? (
-        <div className="alert alert-danger">
-          <h4>Error</h4>
-          <p>{error}</p>
-          <button className="btn btn-primary" onClick={fetchPosts}>
-            Try Again
-          </button>
-        </div>
-      ) : posts.length > 0 ? (
-        <div className="row">
-          {posts
-            .filter((post) => !post.replyToId)
-            .map((post) => (
-              <div key={post.id} className="mb-3">
-                <div className="card">
-                  {post.imagePath && (
-                    <img
-                      src={`${process.env.NEXT_PUBLIC_UPLOAD_URL}/${post.imagePath}`}
-                      className="card-img-top"
-                      alt="Post image"
-                      style={{
-                        maxWidth: "100%",
-                        maxHeight: "400px",
-                        objectFit: "contain",
-                      }}
-                    />
-                  )}
-                  <div className="card-body">
-                    <p className="card-text">{post.content}</p>
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div>
-                        <small className="text-muted">
-                          {new Date(post.createdAt).toLocaleDateString()}
-                          {post.author && (
-                            <>
-                              {" "}
-                              by <strong>{post.author.username}</strong>
-                            </>
-                          )}
-                        </small>
-                      </div>
-                    </div>
-                    <div className="mt-2">
-                      <a
-                        href={`/posts/${post.id}`}
-                        className="btn btn-sm btn-info me-2"
-                      >
-                        View
-                      </a>
-                      {user && (
-                        <a
-                          href={`/posts/${post.id}/reply`}
-                          className="btn btn-sm btn-success me-2"
-                        >
-                          Reply
-                        </a>
-                      )}
-                      {canModifyPost(post) && (
-                        <>
-                          <a
-                            href={`/posts/${post.id}/edit`}
-                            className="btn btn-sm btn-warning me-2"
-                          >
-                            Edit
-                          </a>
-                          <button
-                            className="btn btn-sm btn-danger"
-                            onClick={() => handleDelete(post.id)}
-                          >
-                            Delete
-                          </button>
-                        </>
-                      )}
-                    </div>
 
-                    {post.replies && post.replies.length > 0 && (
-                      <div className="mt-3 ms-3 border-start border-3 ps-3">
-                        <h6 className="text-muted mb-3">
-                          Replies ({post.replies.length}):
-                        </h6>
-                        {post.replies.map((reply) => (
-                          <div
-                            key={reply.id}
-                            className="mb-2 p-2 bg-light rounded"
-                          >
-                            <div className="d-flex justify-content-between align-items-center mb-2">
-                              <strong className="small">
-                                {reply.author?.username || "Anonymous"}
-                              </strong>
-                              <small className="text-muted">
-                                {new Date(reply.createdAt).toLocaleDateString()}
-                              </small>
-                            </div>
-                            {reply.imagePath && (
-                              <div className="mb-2">
-                                <img
-                                  src={`${process.env.NEXT_PUBLIC_UPLOAD_URL}/${reply.imagePath}`}
-                                  alt="Reply image"
-                                  className="img-fluid rounded"
-                                  style={{ maxWidth: "100%", maxHeight: "200px", objectFit: "contain" }}
-                                />
-                              </div>
-                            )}
-                            <p className="mb-0 small">
-                              <a
-                                href={`/posts/${reply.id}`}
-                                className="text-dark text-decoration-none"
-                              >
-                                {reply.content}
-                              </a>
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+        {/* Filter Section */}
+        <div className="card p-3 mb-4 bg-light">
+          <form onSubmit={handleSearch} className="row g-3">
+            <div className="col-md-3">
+              <input type="text" className="form-control" placeholder="Search title..." 
+                value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <div className="col-md-2">
+              <select className="form-select" value={priority} onChange={e => setPriority(e.target.value)}>
+                <option value="">All Priorities</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+            <div className="col-md-2">
+              <select className="form-select" value={status} onChange={e => setStatus(e.target.value)}>
+                <option value="">All Status</option>
+                <option value="completed">Completed</option>
+                <option value="incomplete">Incomplete</option>
+              </select>
+            </div>
+            <div className="col-md-2">
+              <select className="form-select" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
+                <option value="">All Categories</option>
+                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className="col-md-3 d-flex gap-2">
+              <button type="submit" className="btn btn-secondary flex-grow-1">Search</button>
+              <Link href="/tasks/new" className="btn btn-primary flex-grow-1">
+                + New Task
+              </Link>
+            </div>
+          </form>
+        </div>
+
+        {/* Task List */}
+        <div className="list-group mb-4">
+          {tasks.map(task => (
+            <div key={task.id} className={`list-group-item list-group-item-action d-flex justify-content-between align-items-center ${task.isCompleted ? 'bg-light text-muted' : ''}`}>
+              <div className="d-flex align-items-center gap-3">
+                <input 
+                  type="checkbox" 
+                  className="form-check-input" 
+                  style={{transform: 'scale(1.3)'}}
+                  checked={task.isCompleted} 
+                  onChange={() => toggleComplete(task)} 
+                />
+                <div>
+                  <h5 className={`mb-1 ${task.isCompleted ? 'text-decoration-line-through' : ''}`}>
+                    {task.title}
+                    {/* Badge Priority */}
+                    <span className={`badge ms-2 ${task.priority === 'High' ? 'bg-danger' : task.priority === 'Medium' ? 'bg-warning text-dark' : 'bg-success'}`}>
+                      {task.priority}
+                    </span>
+                    {task.category && <span className="badge bg-info text-dark ms-1">{task.category.name}</span>}
+                  </h5>
+                  <small>Due: {new Date(task.dueDate).toLocaleDateString()}</small>
+                  {task.fileUrl && (
+                    <div className="mt-1">
+                      <a href={`${process.env.NEXT_PUBLIC_API_URL}/uploads/${task.fileUrl}`} target="_blank" rel="noreferrer" className="text-primary text-decoration-none">
+                        📎 View Attachment
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
+              <button className="btn btn-sm btn-danger" onClick={() => deleteTask(task.id)}>Delete</button>
+            </div>
+          ))}
+          {tasks.length === 0 && <p className="text-center text-muted">No tasks found.</p>}
         </div>
-      ) : (
-        <div className="alert alert-info">
-          <h4>No posts yet</h4>
-          <p>Be the first to create a post!</p>
-          <a href="/posts/new" className="btn btn-primary">
-            Create First Post
-          </a>
-        </div>
-      )}
-    </>
+
+        {/* Pagination */}
+        {meta && (
+          <div className="d-flex justify-content-center gap-2">
+            <button 
+              className="btn btn-outline-primary" 
+              disabled={page <= 1}
+              onClick={() => setPage(p => p - 1)}
+            >
+              Previous
+            </button>
+            <span className="align-self-center">
+              Page {meta.page} of {meta.lastPage}
+            </span>
+            <button 
+              className="btn btn-outline-primary" 
+              disabled={page >= meta.lastPage}
+              onClick={() => setPage(p => p + 1)}
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
+    </ProtectedRoute>
   );
 }
