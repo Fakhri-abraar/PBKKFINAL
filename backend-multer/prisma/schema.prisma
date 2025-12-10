@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -17,24 +14,48 @@ model User {
   username     String  @id
   password     String
   refreshToken String?
-  tasks        Task[]  // Ganti posts jadi tasks
-  
+  tasks        Task[] 
+  categories   Category[] // Relasi ke kategori custom user
+
   @@map("users")
+}
+
+// [Baru] Model Category untuk Requirement No. 6
+model Category {
+  id        String   @id @default(uuid())
+  name      String
+  
+  // Relasi: Kategori milik user tertentu
+  user      User     @relation(fields: [username], references: [username], onDelete: Cascade)
+  username  String
+  
+  tasks     Task[]
+
+  @@unique([name, username]) // Mencegah duplikasi nama kategori per user
+  @@map("categories")
 }
 
 model Task {
   id          String   @id @default(uuid())
-  title       String   // [Baru] Judul task
-  description String?  // Ganti content jadi description (opsional)
-  priority    String   // [Baru] Low, Medium, High
-  dueDate     DateTime // [Baru] Tenggat waktu
-  category    String?  // [Baru] Kategori/Tag
-  isCompleted Boolean  @default(false) // [Baru] Status selesai/belum
+  title       String   
+  description String?
+  priority    String   // Low, Medium, High
+  dueDate     DateTime 
+  isCompleted Boolean  @default(false)
   
-  filePath    String?  // Ganti imagePath jadi filePath (untuk attachment)
+  // [Fix Error Anda] Menambahkan field isPublic
+  isPublic    Boolean  @default(false) 
   
+  // [Penyesuaian] Ubah filePath jadi fileUrl agar sesuai Service
+  fileUrl     String?  
+  
+  // Relasi ke User
   authorId    String
   author      User     @relation(fields: [authorId], references: [username], onDelete: Cascade)
+  
+  // [Penyesuaian] Relasi ke Category (bukan sekadar string)
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

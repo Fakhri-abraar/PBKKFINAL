@@ -5,14 +5,15 @@ import {
   Get,
   Param,
   Post,
-  Put,
+  Patch, // Ganti Put jadi Patch
   Query,
   Request,
   UseGuards,
-  Patch,
+  NotFoundException, // Tambahan
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TasksService } from './tasks.service';
+// PERHATIKAN IMPORT INI: pastikan sesuai nama file baru
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { JwtPayloadDto } from '../auth/dto/jwt-payload.dto';
@@ -21,53 +22,32 @@ import { JwtPayloadDto } from '../auth/dto/jwt-payload.dto';
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
-  // 1. Create Task
   @UseGuards(JwtAuthGuard)
   @Post()
-  async create(
-    @Body() createTaskDto: CreateTaskDto,
-    @Request() req: { user: JwtPayloadDto },
-  ) {
+  async create(@Body() createTaskDto: CreateTaskDto, @Request() req: { user: JwtPayloadDto }) {
     return this.tasksService.create(createTaskDto, req.user.username);
   }
 
-  // 2. Get All My Tasks (dengan Search & Filter)
   @UseGuards(JwtAuthGuard)
   @Get()
   async findAll(
     @Request() req: { user: JwtPayloadDto },
     @Query('search') search?: string,
     @Query('priority') priority?: string,
-    @Query('status') status?: string, // 'completed' atau 'incomplete'
+    @Query('status') status?: string,
     @Query('categoryId') categoryId?: string,
   ) {
-    return this.tasksService.findAll(req.user.username, {
-      search,
-      priority,
-      status,
-      categoryId,
-    });
+    return this.tasksService.findAll(req.user.username, { search, priority, status, categoryId });
   }
 
-  // 3. Get Public Tasks of Other User (Requirement No. 7)
-  // Endpoint ini bisa diakses siapa saja (atau kasih Guard jika harus login dulu)
-  @UseGuards(JwtAuthGuard) 
-  @Get('user/:username')
-  async getUserPublicTasks(@Param('username') username: string) {
-    return this.tasksService.findPublicTasksByUser(username);
-  }
-
-  // 4. Get Single Task Detail
   @UseGuards(JwtAuthGuard)
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.tasksService.findOne(id);
   }
 
-  // 5. Update Task (Edit Content atau Mark as Complete)
-  // Bisa pakai @Put atau @Patch
   @UseGuards(JwtAuthGuard)
-  @Patch(':id')
+  @Patch(':id') // Gunakan Patch untuk update sebagian
   async update(
     @Param('id') id: string,
     @Body() updateTaskDto: UpdateTaskDto,
@@ -76,13 +56,9 @@ export class TasksController {
     return this.tasksService.update(id, updateTaskDto, req.user.username);
   }
 
-  // 6. Delete Task
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  async remove(
-    @Param('id') id: string,
-    @Request() req: { user: JwtPayloadDto },
-  ) {
+  async remove(@Param('id') id: string, @Request() req: { user: JwtPayloadDto }) {
     return this.tasksService.remove(id, req.user.username);
   }
 }

@@ -17,14 +17,18 @@ export class CreateTaskDto {
   @IsEnum(TaskPriority)
   priority: TaskPriority;
 
-  @IsDateString() 
-  dueDate: string; // Dikirim sebagai string ISO (YYYY-MM-DD)
+  @IsDateString()
+  dueDate: string; // Format: YYYY-MM-DD
 
   @IsString()
   @IsOptional()
-  categoryId?: string; // ID Kategori jika ada
+  categoryId?: string;
 
   @IsBoolean()
   @IsOptional()
   isPublic?: boolean;
+
+  @IsString()
+  @IsOptional()
+  fileUrl?: string;
 }
