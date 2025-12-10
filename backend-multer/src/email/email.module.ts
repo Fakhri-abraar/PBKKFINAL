@@ -1,23 +1,30 @@
 import { Global, Module } from '@nestjs/common';
 import { MailerModule } from '@nestjs-modules/mailer';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
-@Global() // Decorator ini membuat module & exports-nya tersedia di seluruh aplikasi
+@Global()
 @Module({
   imports: [
-    MailerModule.forRoot({
-      transport: {
-        host: 'sandbox.smtp.mailtrap.io', // Sesuaikan dengan config Anda
-        port: 2525,
-        auth: {
-          user: 'GANTI_DENGAN_USER_MAILTRAP',
-          pass: 'GANTI_DENGAN_PASS_MAILTRAP',
+    // Gunakan forRootAsync agar bisa inject ConfigService
+    MailerModule.forRootAsync({
+      imports: [ConfigModule], 
+      useFactory: async (configService: ConfigService) => ({
+        transport: {
+          host: configService.get<string>('MAIL_HOST'),
+          port: configService.get<number>('MAIL_PORT'),
+          secure: false, // false untuk port 587 (TLS), true untuk port 465 (SSL)
+          auth: {
+            user: configService.get<string>('MAIL_USER'),
+            pass: configService.get<string>('MAIL_PASS'),
+          },
         },
-      },
-      defaults: {
-        from: '"No Reply" <noreply@example.com>',
-      },
+        defaults: {
+          from: `"Todo App Reminder" <${configService.get<string>('MAIL_FROM')}>`,
+        },
+      }),
+      inject: [ConfigService],
     }),
   ],
-  exports: [MailerModule], // Export agar module lain bisa pakai MailerService
+  exports: [MailerModule],
 })
 export class EmailModule {}

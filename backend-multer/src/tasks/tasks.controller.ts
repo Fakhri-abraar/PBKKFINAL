@@ -60,11 +60,7 @@ export class TasksController {
     });
   }
 
-  // ==================================================================
-  // [BARU] Endpoint untuk melihat Public Tasks user lain
-  // URL: GET /tasks/public/{username}
-  // PENTING: Harus diletakkan SEBELUM @Get(':id')
-  // ==================================================================
+
   @UseGuards(JwtAuthGuard)
   @Get('public/:username') 
   async findPublicTasks(@Param('username') username: string) {
