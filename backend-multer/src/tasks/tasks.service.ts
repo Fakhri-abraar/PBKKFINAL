@@ -63,21 +63,23 @@ export class TasksService {
       priority?: string;
       status?: string;
       categoryId?: string;
+      startDate?: string; // [Baru]
+      endDate?: string;   // [Baru]
       page: number;
       limit: number;
     },
   ) {
-    const { search, priority, status, categoryId, page, limit } = params;
+    const { search, priority, status, categoryId, startDate, endDate, page, limit } = params;
     const skip = (page - 1) * limit;
 
-    // Query dasar: milik user yang login
+    // Base query: milik user yang login
     const whereClause: any = {
       authorId: userId,
     };
 
     // --- Filter Logic ---
     if (search) {
-      whereClause.title = { contains: search }; // Default case-sensitive di SQLite
+      whereClause.title = { contains: search };
     }
     if (priority) {
       whereClause.priority = priority;
@@ -89,7 +91,25 @@ export class TasksService {
       whereClause.categoryId = categoryId;
     }
 
-    // Jalankan Query Transaction (Data + Total Count)
+    // [Baru] Filter Rentang Tanggal (Due Date)
+    if (startDate || endDate) {
+      whereClause.dueDate = {};
+      
+      // Filter "Dari Tanggal X"
+      if (startDate) {
+        whereClause.dueDate.gte = new Date(startDate); // Greater than or equal
+      }
+
+      // Filter "Sampai Tanggal Y"
+      if (endDate) {
+        // Kita set jam ke 23:59:59 agar mencakup seluruh hari tersebut
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        whereClause.dueDate.lte = end; // Less than or equal
+      }
+    }
+
+    // Jalankan Query Transaction
     const [data, total] = await this.prisma.$transaction([
       this.prisma.task.findMany({
         where: whereClause,
@@ -105,7 +125,6 @@ export class TasksService {
       this.prisma.task.count({ where: whereClause }),
     ]);
 
-    // Return format pagination
     return {
       data,
       meta: {

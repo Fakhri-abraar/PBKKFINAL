@@ -37,6 +37,12 @@ export class TasksController {
     @Query('priority') priority?: string,
     @Query('status') status?: string,
     @Query('categoryId') categoryId?: string,
+    
+    // [Baru] Filter Tanggal
+    @Query('startDate') startDate?: string, // Format: YYYY-MM-DD
+    @Query('endDate') endDate?: string,     // Format: YYYY-MM-DD
+
+    // Pagination
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number = 10,
   ) {
@@ -45,8 +51,10 @@ export class TasksController {
       priority,
       status,
       categoryId,
-      page,  // Kirim ke service
-      limit, // Kirim ke service
+      startDate, // Kirim ke service
+      endDate,   // Kirim ke service
+      page,
+      limit,
     });
   }
 
