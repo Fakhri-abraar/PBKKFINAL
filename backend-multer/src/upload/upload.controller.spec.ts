@@ -31,8 +31,7 @@ describe('UploadController', () => {
     });
 
     it('should throw BadRequestException if file is missing', () => {
-      // [FIX] Gunakan 'as any' untuk mem-bypass pengecekan tipe statis TypeScript
-      // karena kita sengaja ingin mengirim null/undefined untuk testing error
+
       expect(() => controller.uploadFile(null as any)).toThrow(BadRequestException);
     });
   });

@@ -76,8 +76,9 @@ export class TasksController {
   // 3. Get One Task Detail
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.tasksService.findOne(id);
+  async findOne(@Param('id') id: string, @Request() req: { user: JwtPayloadDto }) {
+  // Sekarang kita kirim username requester ke service
+  return this.tasksService.findOne(id, req.user.username);
   }
 
   // 4. Update Task
