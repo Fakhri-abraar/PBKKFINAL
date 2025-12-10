@@ -18,9 +18,12 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (loading) {
     return (
-      <div className="text-center">
-        <div className="spinner-border" role="status">
-          <span className="visually-hidden">Loading...</span>
+      <div className="d-flex justify-content-center align-items-center" style={{minHeight: '80vh'}}>
+        <div className="text-center">
+          <div className="spinner-border text-info" role="status" style={{width: '3rem', height: '3rem'}}>
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-3 text-white">Calibrating sensors...</p>
         </div>
       </div>
     );
@@ -28,12 +31,14 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!user) {
     return (
-      <div className="alert alert-warning">
-        <h4>Authentication Required</h4>
-        <p>You need to be logged in to access this page.</p>
-        <a href="/auth/login" className="btn btn-primary">
-          Login
-        </a>
+      <div className="container mt-5">
+        <div className="alert alert-warning glass-card text-center border-warning">
+          <h4 className="text-warning">⚠️ Access Denied</h4>
+          <p className="text-white">You need to be logged in to access this sector.</p>
+          <a href="/auth/login" className="btn btn-outline-warning mt-2">
+            Login
+          </a>
+        </div>
       </div>
     );
   }

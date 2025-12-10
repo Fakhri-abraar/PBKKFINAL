@@ -32,46 +32,50 @@ export default function Login() {
   };
 
   if (user) {
-    return <div>Redirecting...</div>;
+    return <div className="text-white text-center mt-5">Redirecting to command center...</div>;
   }
 
   return (
-    <div className="row justify-content-center">
-      <div className="col-md-6">
-        <div className="card">
-          <div className="card-header">
-            <h4 className="mb-0">Login</h4>
+    <div className="row justify-content-center align-items-center" style={{minHeight: '80vh'}}>
+      <div className="col-md-5">
+        <div className="glass-card p-4">
+          <div className="text-center mb-4">
+            <h2 className="fw-bold text-white">🔐 Space Access</h2>
+            <p className="text-white-50">Identify yourself, Commander.</p>
           </div>
+          
           <div className="card-body">
             {error && (
-              <div className="alert alert-danger" role="alert">
+              <div className="alert alert-danger border-0" role="alert" style={{background: 'rgba(220, 53, 69, 0.8)', color: 'white'}}>
                 {error}
               </div>
             )}
 
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
-                <label htmlFor="username" className="form-label">
+                <label htmlFor="username" className="form-label text-white">
                   Username
                 </label>
                 <input
                   type="text"
                   className="form-control"
                   id="username"
+                  placeholder="Enter your ID"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
                 />
               </div>
 
-              <div className="mb-3">
-                <label htmlFor="password" className="form-label">
+              <div className="mb-4">
+                <label htmlFor="password" className="form-label text-white">
                   Password
                 </label>
                 <input
                   type="password"
                   className="form-control"
                   id="password"
+                  placeholder="Enter your secret code"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -80,17 +84,18 @@ export default function Login() {
 
               <button
                 type="submit"
-                className="btn btn-primary w-100"
+                className="btn btn-primary w-100 fw-bold py-2"
+                style={{background: 'linear-gradient(45deg, #4facfe, #00f2fe)', border: 'none'}}
                 disabled={loading}
               >
-                {loading ? 'Logging in...' : 'Login'}
+                {loading ? 'Authenticating...' : 'Initialize Launch'}
               </button>
             </form>
 
-            <div className="text-center mt-3">
-              <p>
-                Don't have an account?{' '}
-                <a href="/auth/register">Register here</a>
+            <div className="text-center mt-4">
+              <p className="mb-0 text-white-50">
+                New recruit?{' '}
+                <a href="/auth/register" className="text-info text-decoration-none fw-bold">Register here</a>
               </p>
             </div>
           </div>

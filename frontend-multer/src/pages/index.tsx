@@ -80,73 +80,73 @@ export default function Dashboard() {
 
   return (
     <ProtectedRoute>
-      <div className="container mt-4">
+      <div className="container">
         {/* Header Dashboard */}
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <h1>My Todo List</h1>
+        <div className="d-flex justify-content-between align-items-center mb-4 p-3 glass-card">
+          <h1 className="h3 mb-0 text-white">🚀 Space Mission Log</h1>
           <div className="d-flex gap-2 align-items-center">
-            <span className="me-2">Hi, {user?.username}</span>
+            <span className="me-2 text-info">Commander {user?.username}</span>
             
             {/* Tombol Find Friends */}
-            <Link href="/users" className="btn btn-outline-primary btn-sm">
-              🔍 Find Friends
+            <Link href="/users" className="btn btn-outline-info btn-sm">
+              🔍 Find Crew
             </Link>
             
-            <button className="btn btn-outline-danger btn-sm" onClick={logout}>Logout</button>
+            <button className="btn btn-outline-danger btn-sm" onClick={logout}>Abort Mission</button>
           </div>
         </div>
 
         {/* Filter Section */}
-        <div className="card p-3 mb-4 bg-light">
+        <div className="p-4 mb-4 glass-card">
           <form onSubmit={handleSearch} className="row g-3">
             <div className="col-md-3">
-              <input type="text" className="form-control" placeholder="Search title..." 
+              <input type="text" className="form-control" placeholder="Search mission..." 
                 value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <div className="col-md-2">
               <select className="form-select" value={priority} onChange={e => setPriority(e.target.value)}>
                 <option value="">All Priorities</option>
-                <option value="High">High</option>
-                <option value="Medium">Medium</option>
-                <option value="Low">Low</option>
+                <option value="High">🔴 High</option>
+                <option value="Medium">🟡 Medium</option>
+                <option value="Low">🟢 Low</option>
               </select>
             </div>
             <div className="col-md-2">
               <select className="form-select" value={status} onChange={e => setStatus(e.target.value)}>
                 <option value="">All Status</option>
-                <option value="completed">Completed</option>
-                <option value="incomplete">Incomplete</option>
+                <option value="completed">✅ Completed</option>
+                <option value="incomplete">⏳ Incomplete</option>
               </select>
             </div>
             <div className="col-md-2">
               <select className="form-select" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
-                <option value="">All Categories</option>
+                <option value="">All Sectors</option>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div className="col-md-3 d-flex gap-2">
-              <button type="submit" className="btn btn-secondary flex-grow-1">Search</button>
-              <Link href="/tasks/new" className="btn btn-primary flex-grow-1">
-                + New Task
+              <button type="submit" className="btn btn-primary flex-grow-1" style={{background: 'linear-gradient(45deg, #667eea, #764ba2)', border: 'none'}}>Search</button>
+              <Link href="/tasks/new" className="btn btn-success flex-grow-1" style={{background: 'linear-gradient(45deg, #11998e, #38ef7d)', border: 'none'}}>
+                + New Mission
               </Link>
             </div>
           </form>
         </div>
 
         {/* Task List */}
-        <div className="list-group mb-4">
+        <div className="d-flex flex-column gap-3 mb-4">
           {tasks.map(task => (
-            <div key={task.id} className={`list-group-item list-group-item-action d-flex justify-content-between align-items-center ${task.isCompleted ? 'bg-light text-muted' : ''}`}>
+            <div key={task.id} className={`p-3 glass-card d-flex justify-content-between align-items-center`} style={{ background: task.isCompleted ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)' }}>
               <div className="d-flex align-items-center gap-3">
                 <input 
                   type="checkbox" 
                   className="form-check-input" 
-                  style={{transform: 'scale(1.3)'}}
+                  style={{transform: 'scale(1.3)', cursor: 'pointer'}}
                   checked={task.isCompleted} 
                   onChange={() => toggleComplete(task)} 
                 />
                 <div>
-                  <h5 className={`mb-1 ${task.isCompleted ? 'text-decoration-line-through' : ''}`}>
+                  <h5 className={`mb-1 ${task.isCompleted ? 'text-decoration-line-through text-white-50' : 'text-white'}`}>
                     {task.title}
                     {/* Badge Priority */}
                     <span className={`badge ms-2 ${task.priority === 'High' ? 'bg-danger' : task.priority === 'Medium' ? 'bg-warning text-dark' : 'bg-success'}`}>
@@ -154,11 +154,11 @@ export default function Dashboard() {
                     </span>
                     {task.category && <span className="badge bg-info text-dark ms-1">{task.category.name}</span>}
                   </h5>
-                  <small>Due: {new Date(task.dueDate).toLocaleDateString()}</small>
+                  <small className="text-white-50">Due: {new Date(task.dueDate).toLocaleDateString()}</small>
                   {task.fileUrl && (
                     <div className="mt-1">
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL}/uploads/${task.fileUrl}`} target="_blank" rel="noreferrer" className="text-primary text-decoration-none">
-                        📎 View Attachment
+                      <a href={`${process.env.NEXT_PUBLIC_API_URL}/uploads/${task.fileUrl}`} target="_blank" rel="noreferrer" className="text-info text-decoration-none">
+                        📎 View Logs
                       </a>
                     </div>
                   )}
@@ -166,7 +166,7 @@ export default function Dashboard() {
               </div>
               
               <div className="d-flex gap-2">
-                <Link href={`/tasks/${task.id}/edit`} className="btn btn-sm btn-warning">
+                <Link href={`/tasks/${task.id}/edit`} className="btn btn-sm btn-warning text-dark fw-bold">
                   Edit
                 </Link>
                 <button className="btn btn-sm btn-danger" onClick={() => deleteTask(task.id)}>
@@ -175,24 +175,28 @@ export default function Dashboard() {
               </div>
             </div>
           ))}
-          {tasks.length === 0 && <p className="text-center text-muted">No tasks found.</p>}
+          {tasks.length === 0 && (
+            <div className="glass-card p-5 text-center text-white-50">
+              <h4>No active missions found in this sector.</h4>
+            </div>
+          )}
         </div>
 
         {/* Pagination */}
         {meta && (
-          <div className="d-flex justify-content-center gap-2">
+          <div className="d-flex justify-content-center gap-2 mb-5">
             <button 
-              className="btn btn-outline-primary" 
+              className="btn btn-outline-light" 
               disabled={page <= 1}
               onClick={() => setPage(p => p - 1)}
             >
               Previous
             </button>
-            <span className="align-self-center">
-              Page {meta.page} of {meta.lastPage}
+            <span className="align-self-center text-white">
+              Sector {meta.page} of {meta.lastPage}
             </span>
             <button 
-              className="btn btn-outline-primary" 
+              className="btn btn-outline-light" 
               disabled={page >= meta.lastPage}
               onClick={() => setPage(p => p + 1)}
             >
