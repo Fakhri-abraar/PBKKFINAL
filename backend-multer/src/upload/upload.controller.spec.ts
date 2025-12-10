@@ -21,19 +21,18 @@ describe('UploadController', () => {
     it('should return file path on successful upload', () => {
       const mockFile = {
         filename: 'test-image.jpg',
-        path: 'uploads/test-image.jpg',
       } as Express.Multer.File;
 
       const result = controller.uploadFile(mockFile);
-      
-      // [FIX] Gunakan 'imagePath' sesuai kode controller Anda
+
       expect(result).toEqual({
-        imagePath: 'test-image.jpg',
+        filePath: 'test-image.jpg',
       });
     });
 
-    it('should throw BadRequestException if no file provided', () => {
-      // [FIX] Menggunakan 'as any' untuk memaksa null saat testing
+    it('should throw BadRequestException if file is missing', () => {
+      // [FIX] Gunakan 'as any' untuk mem-bypass pengecekan tipe statis TypeScript
+      // karena kita sengaja ingin mengirim null/undefined untuk testing error
       expect(() => controller.uploadFile(null as any)).toThrow(BadRequestException);
     });
   });
