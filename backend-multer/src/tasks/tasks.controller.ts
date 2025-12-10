@@ -17,6 +17,7 @@ import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { JwtPayloadDto } from '../auth/dto/jwt-payload.dto';
+import { DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 
 @Controller('tasks')
 export class TasksController {
@@ -36,8 +37,17 @@ export class TasksController {
     @Query('priority') priority?: string,
     @Query('status') status?: string,
     @Query('categoryId') categoryId?: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number = 10,
   ) {
-    return this.tasksService.findAll(req.user.username, { search, priority, status, categoryId });
+    return this.tasksService.findAll(req.user.username, {
+      search,
+      priority,
+      status,
+      categoryId,
+      page,  // Kirim ke service
+      limit, // Kirim ke service
+    });
   }
 
   @UseGuards(JwtAuthGuard)

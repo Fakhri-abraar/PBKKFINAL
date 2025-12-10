@@ -38,51 +38,64 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto) {
-    const { username, password } = registerDto;
+    const { username, email, password } = registerDto;
 
+    // Cek apakah username atau email sudah ada
+    const existingUser = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ username }, { email }],
+      },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Username or Email already exists');
+    }
+
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Simpan ke database
     const user = await this.prisma.user.create({
       data: {
         username,
+        email, // Wajib ada sekarang
         password: hashedPassword,
       },
     });
 
-    const { accessToken, refreshToken } = this.generateTokens(user.username);
-    await this.updateRefreshToken(user.username, refreshToken);
-
     return {
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      user: {
-        username: user.username,
-      },
+      message: 'User registered successfully',
+      user: { username: user.username, email: user.email },
     };
   }
 
   async login(loginDto: LoginDto) {
     const { username, password } = loginDto;
 
+    // Cari user
     const user = await this.prisma.user.findUnique({
       where: { username },
     });
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const { accessToken, refreshToken } = this.generateTokens(user.username);
-    await this.updateRefreshToken(user.username, refreshToken);
+    // Cek password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Generate Token
+    const payload: JwtPayloadDto = { username: user.username, sub: user.username };
+    const accessToken = this.jwtService.sign(payload);
 
     return {
       access_token: accessToken,
-      refresh_token: refreshToken,
-      user: {
-        username: user.username,
-      },
     };
   }
+}
 
   async refreshToken(refreshTokenDto: RefreshTokenDto) {
     const { refreshToken } = refreshTokenDto;

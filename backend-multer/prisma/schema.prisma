@@ -12,10 +12,12 @@ datasource db {
 
 model User {
   username     String  @id
+  email        String  @unique // [Wajib] Tambahkan ini
   password     String
   refreshToken String?
+  
   tasks        Task[] 
-  categories   Category[] // Relasi ke kategori custom user
+  categories   Category[]
 
   @@map("users")
 }
