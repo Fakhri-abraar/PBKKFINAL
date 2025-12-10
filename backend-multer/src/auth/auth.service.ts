@@ -1,10 +1,15 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { 
+  Injectable, 
+  UnauthorizedException, 
+  ConflictException // [Fix] Tambahkan import ini
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { JwtPayloadDto } from './dto/jwt-payload.dto'; // [Fix] Pastikan import ini ada
 
 @Injectable()
 export class AuthService {
@@ -58,7 +63,7 @@ export class AuthService {
     const user = await this.prisma.user.create({
       data: {
         username,
-        email, // Wajib ada sekarang
+        email, 
         password: hashedPassword,
       },
     });
@@ -87,16 +92,17 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Generate Token
-    const payload: JwtPayloadDto = { username: user.username, sub: user.username };
-    const accessToken = this.jwtService.sign(payload);
+    // Generate Token (Gunakan method generateTokens agar konsisten)
+    const tokens = this.generateTokens(user.username);
+    await this.updateRefreshToken(user.username, tokens.refreshToken);
 
     return {
-      access_token: accessToken,
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
     };
   }
-}
 
+  // [Fix] Method refreshToken sekarang berada DI DALAM class (sebelumnya di luar)
   async refreshToken(refreshTokenDto: RefreshTokenDto) {
     const { refreshToken } = refreshTokenDto;
 
