@@ -158,7 +158,16 @@ export default function Dashboard() {
                   )}
                 </div>
               </div>
-              <button className="btn btn-sm btn-danger" onClick={() => deleteTask(task.id)}>Delete</button>
+              
+              {/* Tombol Action */}
+              <div className="d-flex gap-2">
+                <Link href={`/tasks/${task.id}/edit`} className="btn btn-sm btn-warning">
+                  Edit
+                </Link>
+                <button className="btn btn-sm btn-danger" onClick={() => deleteTask(task.id)}>
+                  Delete
+                </button>
+              </div>
             </div>
           ))}
           {tasks.length === 0 && <p className="text-center text-muted">No tasks found.</p>}

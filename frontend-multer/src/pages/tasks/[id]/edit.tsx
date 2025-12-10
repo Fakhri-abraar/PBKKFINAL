@@ -1,169 +1,202 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import Link from "next/link";
 import { useAuth } from "../../../contexts/AuthContext";
 import ProtectedRoute from "../../../components/ProtectedRoute";
+import { Category, Task } from "../../../types";
 
-interface Author {
-  username: string;
-}
-
-interface Post {
-  id: string;
-  content: string;
-  imagePath?: string;
-  createdAt: string;
-  updatedAt: string;
-  author?: Author;
-}
-
-function EditPostContent() {
-  const [post, setPost] = useState<Post | null>(null);
-  const [content, setContent] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export default function EditTask() {
   const router = useRouter();
-  const { id: postId } = router.query;
-  const { token, user } = useAuth();
+  const { id } = router.query;
+  const { token } = useAuth();
+  
+  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<Category[]>([]);
+  
+  // Form State
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState("Medium");
+  const [dueDate, setDueDate] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!postId) return;
+    if (!token || !id) return;
 
-    async function fetchPost() {
-      try {
-        const response = await fetch(`http://localhost:3000/posts/${postId}`);
-        if (response.ok) {
-          const postData = await response.json();
-          // Check if user can edit this post
-          if (
-            postData.author &&
-            user &&
-            postData.author.username !== user.username
-          ) {
-            alert("You can only edit your own posts");
-            router.push("/");
-            return;
-          }
-          setPost(postData);
-          setContent(postData.content);
-        } else {
-          router.push("/");
+    // 1. Fetch Categories untuk dropdown
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    .then((res) => res.json())
+    .then((data) => setCategories(data));
+
+    // 2. Fetch Task Detail
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Task not found");
+        const data: Task = await res.json();
+        
+        // Isi form dengan data yang ada
+        setTitle(data.title);
+        setDescription(data.description || "");
+        setPriority(data.priority);
+        setCategoryId(data.categoryId || "");
+        setIsPublic(data.isPublic);
+        
+        // Format tanggal agar sesuai input type="date" (YYYY-MM-DD)
+        if (data.dueDate) {
+          const dateObj = new Date(data.dueDate);
+          const dateStr = dateObj.toISOString().split('T')[0];
+          setDueDate(dateStr);
         }
-      } catch (error) {
-        router.push("/");
-      } finally {
+        
         setLoading(false);
-      }
-    }
+      })
+      .catch((err) => {
+        console.error(err);
+        alert("Failed to load task");
+        router.push("/");
+      });
+  }, [id, token, router]);
 
-    fetchPost();
-  }, [postId, router]);
-
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!content.trim()) return;
-
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`http://localhost:3000/posts/${postId}`, {
-        method: "PUT",
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks/${id}`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ content: content.trim() }),
+        body: JSON.stringify({
+          title,
+          description,
+          priority,
+          dueDate: new Date(dueDate).toISOString(),
+          categoryId: categoryId || null,
+          isPublic,
+        }),
       });
 
-      if (response.ok) {
-        router.push(`/posts/${postId}`);
-      } else if (response.status === 401) {
-        alert("Please login to edit posts");
-        router.push("/auth/login");
-      } else if (response.status === 403) {
-        alert("You can only edit your own posts");
+      if (res.ok) {
+        alert("Task updated successfully");
         router.push("/");
       } else {
-        alert("Error updating post");
+        const errData = await res.json();
+        alert(errData.message || "Failed to update task");
       }
     } catch (error) {
-      alert("Error updating post");
+      alert("An error occurred");
     } finally {
       setIsSubmitting(false);
     }
-  }
+  };
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
+  if (loading) return <div className="container mt-4">Loading...</div>;
 
-  if (!post) {
-    return <div>Post not found</div>;
-  }
-
-  return (
-    <>
-      <h1>Edit Post</h1>
-
-      {post.imagePath && (
-        <div className="mb-3">
-          <img
-            src={`${process.env.NEXT_PUBLIC_UPLOAD_URL}/${post.imagePath}`}
-            alt="Post image"
-            className="img-fluid rounded"
-            style={{
-              maxWidth: "100%",
-              maxHeight: "300px",
-              objectFit: "contain",
-            }}
-          />
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-        <div className="mb-3">
-          <label htmlFor="content" className="form-label">
-            Content
-          </label>
-          <textarea
-            className="form-control"
-            id="content"
-            rows={5}
-            required
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-          />
-        </div>
-
-        <div className="mb-3">
-          <small className="text-muted">
-            <strong>Created:</strong> {post.createdAt}
-            <br />
-            <strong>Last Updated:</strong> {post.updatedAt}
-          </small>
-        </div>
-
-        <div className="d-flex gap-2">
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Updating..." : "Update Post"}
-          </button>
-          <a href={`/posts/${postId}`} className="btn btn-secondary">
-            Cancel
-          </a>
-        </div>
-      </form>
-    </>
-  );
-}
-
-export default function EditPost() {
   return (
     <ProtectedRoute>
-      <EditPostContent />
+      <div className="container mt-4">
+        <div className="card p-4 mx-auto" style={{ maxWidth: "600px" }}>
+          <h2 className="mb-4">Edit Task</h2>
+          <form onSubmit={handleSubmit}>
+            <div className="mb-3">
+              <label className="form-label">Title</label>
+              <input
+                type="text"
+                className="form-control"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Description</label>
+              <textarea
+                className="form-control"
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              ></textarea>
+            </div>
+
+            <div className="row">
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Priority</label>
+                <select
+                  className="form-select"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                >
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                </select>
+              </div>
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Due Date</label>
+                <input
+                  type="date"
+                  className="form-control"
+                  required
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Category</label>
+              <select
+                className="form-select"
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+              >
+                <option value="">No Category</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-check mb-4">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="isPublic"
+                checked={isPublic}
+                onChange={(e) => setIsPublic(e.target.checked)}
+              />
+              <label className="form-check-label" htmlFor="isPublic">
+                Make Public (Visible to everyone)
+              </label>
+            </div>
+
+            <div className="d-flex gap-2">
+              <button
+                type="submit"
+                className="btn btn-primary flex-grow-1"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Saving..." : "Save Changes"}
+              </button>
+              <Link href="/" className="btn btn-secondary">
+                Cancel
+              </Link>
+            </div>
+          </form>
+        </div>
+      </div>
     </ProtectedRoute>
   );
 }
